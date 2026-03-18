@@ -4,13 +4,14 @@ from pydub import AudioSegment
 import tempfile
 import os
 
+
 def main(page: ft.Page):
     page.title = "VocalScribe"
     page.bgcolor = "#4D0213"
     page.padding = 20
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
-    uploaded_file_bytes = None
+    uploaded_file_path = None
 
     transcription_text = ft.TextField(
         label="Audio Transcription",
@@ -22,23 +23,29 @@ def main(page: ft.Page):
 
     status_text = ft.Text("", color="WHITE")
 
-    # --- FILE UPLOAD ---
+    # ---------------- FILE UPLOAD ----------------
     def upload_result(e):
-        nonlocal uploaded_file_bytes
+        nonlocal uploaded_file_path
+
         if e.files:
-            uploaded_file_bytes = e.files[0].bytes
-            status_text.value = f"✅ Uploaded: {e.files[0].name}"
+            file = e.files[0]
+
+            # ✅ IMPORTANT: Use file.path (works on Render)
+            uploaded_file_path = file.path
+
+            status_text.value = f"✅ Uploaded: {file.name}"
         else:
             status_text.value = "⚠️ No file selected"
+
         page.update()
 
-    file_picker = ft.FilePicker()         # create picker
-    file_picker.on_result = upload_result # assign callback
+    file_picker = ft.FilePicker()
+    file_picker.on_result = upload_result
     page.overlay.append(file_picker)
 
-    # --- TRANSCRIPTION ---
+    # ---------------- TRANSCRIBE ----------------
     def transcribe(e):
-        if not uploaded_file_bytes:
+        if not uploaded_file_path:
             status_text.value = "Upload a file first!"
             page.update()
             return
@@ -49,20 +56,17 @@ def main(page: ft.Page):
         try:
             recognizer = sr.Recognizer()
 
-            # Save temp file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                temp_file.write(uploaded_file_bytes)
-                temp_file_path = temp_file.name
+            file_path = uploaded_file_path
 
-            # Convert to WAV if needed
-            if not temp_file_path.lower().endswith(".wav"):
-                audio = AudioSegment.from_file(temp_file_path)
-                wav_path = temp_file_path + ".wav"
-                audio.export(wav_path, format="wav")
-                temp_file_path = wav_path
+            # ✅ Convert to WAV if needed
+            if not file_path.lower().endswith(".wav"):
+                audio = AudioSegment.from_file(file_path)
+                temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                audio.export(temp_wav.name, format="wav")
+                file_path = temp_wav.name
 
-            # Transcribe
-            with sr.AudioFile(temp_file_path) as source:
+            # ✅ Transcribe
+            with sr.AudioFile(file_path) as source:
                 audio_data = recognizer.record(source)
                 text = recognizer.recognize_google(audio_data)
 
@@ -75,7 +79,7 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- COPY TO CLIPBOARD ---
+    # ---------------- COPY ----------------
     def copy_text(e):
         if transcription_text.value.strip():
             page.set_clipboard(transcription_text.value)
@@ -84,9 +88,10 @@ def main(page: ft.Page):
             status_text.value = "Nothing to copy"
         page.update()
 
-    # --- UI ---
+    # ---------------- UI ----------------
     page.add(
         ft.Text("🎙 VocalScribe", size=30, weight="bold"),
+
         ft.ElevatedButton(
             "Upload Audio",
             on_click=lambda _: file_picker.pick_files(
@@ -94,21 +99,12 @@ def main(page: ft.Page):
                 allowed_extensions=["wav", "mp3", "flac"]
             )
         ),
+
         transcription_text,
+
         ft.Row([
             ft.ElevatedButton("Transcribe", on_click=transcribe),
-            ft.ElevatedButton("Copy Text", on_click=copy_text),
-        ]),
-        status_text
-    )
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8550))
-    ft.run(
-        main,
-        port=port,
-        upload_dir="uploads"  # THIS LINE FIXES YOUR ERROR
-    )
+            ft.ElevatedButton("Copy Text",
 
 
 
