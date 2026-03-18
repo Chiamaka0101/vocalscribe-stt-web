@@ -104,7 +104,11 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8550))
-    ft.run(main, view=ft.AppView.WEB_BROWSER, port=port)
+    ft.run(
+        main,
+        port=port,
+        upload_dir="uploads"  # THIS LINE FIXES YOUR ERROR
+    )
 
 
 
