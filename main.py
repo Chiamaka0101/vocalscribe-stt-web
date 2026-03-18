@@ -104,10 +104,21 @@ def main(page: ft.Page):
 
         ft.Row([
             ft.ElevatedButton("Transcribe", on_click=transcribe),
-            ft.ElevatedButton("Copy Text",
+            ft.ElevatedButton("Copy Text", on_click=copy_text),
+        ]),
 
+        status_text
+    )
 
+    # ---------------- RUN APP ----------------
+    if __name__ == "__main__":
+        port = int(os.environ.get("PORT", 8550))
 
+        ft.run(
+            main,
+            port=port,
+            upload_dir="uploads"  # ✅ REQUIRED for Render
+        )
 
 # import flet as ft
 # import speech_recognition as sr
