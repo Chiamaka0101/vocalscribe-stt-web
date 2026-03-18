@@ -1,7 +1,5 @@
 import flet as ft
 import speech_recognition as sr
-from pydub import AudioSegment
-import tempfile
 import os
 
 
@@ -30,7 +28,7 @@ def main(page: ft.Page):
         if e.files:
             file = e.files[0]
 
-            # ✅ IMPORTANT: Use file.path (works on Render)
+            # ✅ Use file path (works on Render)
             uploaded_file_path = file.path
 
             status_text.value = f"✅ Uploaded: {file.name}"
@@ -56,17 +54,8 @@ def main(page: ft.Page):
         try:
             recognizer = sr.Recognizer()
 
-            file_path = uploaded_file_path
-
-            # ✅ Convert to WAV if needed
-            if not file_path.lower().endswith(".wav"):
-                audio = AudioSegment.from_file(file_path)
-                temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                audio.export(temp_wav.name, format="wav")
-                file_path = temp_wav.name
-
-            # ✅ Transcribe
-            with sr.AudioFile(file_path) as source:
+            # ✅ Only WAV files supported
+            with sr.AudioFile(uploaded_file_path) as source:
                 audio_data = recognizer.record(source)
                 text = recognizer.recognize_google(audio_data)
 
@@ -93,10 +82,10 @@ def main(page: ft.Page):
         ft.Text("🎙 VocalScribe", size=30, weight="bold"),
 
         ft.ElevatedButton(
-            "Upload Audio",
+            "Upload WAV Audio",
             on_click=lambda _: file_picker.pick_files(
                 allow_multiple=False,
-                allowed_extensions=["wav", "mp3", "flac"]
+                allowed_extensions=["wav"]   # ✅ ONLY WAV
             )
         ),
 
@@ -110,15 +99,17 @@ def main(page: ft.Page):
         status_text
     )
 
-    # ---------------- RUN APP ----------------
-    if __name__ == "__main__":
-        port = int(os.environ.get("PORT", 8550))
 
-        ft.run(
-            main,
-            port=port,
-            upload_dir="uploads"  # ✅ REQUIRED for Render
-        )
+# ---------------- RUN APP ----------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8550))
+
+    ft.run(
+        main,
+        port=port,
+        upload_dir="uploads"   # ✅ REQUIRED for file upload on Render
+    )
+
 
 # import flet as ft
 # import speech_recognition as sr
