@@ -93,7 +93,7 @@ def main(page: ft.Page):
                     bgcolor="#d2b49c",
                     padding=15,
                     border_radius=30,
-                    alignment=ft.alignment.center,
+                    alignment=ft.Alignment(0, 0),
                     on_click=lambda _: file_picker.pick_files(allow_multiple=False),
                     width=400
                 ),
