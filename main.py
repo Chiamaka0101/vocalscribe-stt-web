@@ -1,7 +1,6 @@
 import flet as ft
 import speech_recognition as sr
 import os
-# import base64
 import tempfile
 
 def main(page: ft.Page):
@@ -12,7 +11,6 @@ def main(page: ft.Page):
 
     uploaded_file_bytes = None
 
-    # --- UI ---
     transcription_text = ft.TextField(
         hint_text="Audio Transcription",
         multiline=True,
@@ -25,25 +23,27 @@ def main(page: ft.Page):
 
     status_text = ft.Text("", color="white")
 
-    # --- FILE PICKER (WEB SAFE) ---
-    def on_upload(e: ft.FilePickerUploadEvent):
+    # ✅ CORRECT FILE PICKER
+    file_picker = ft.FilePicker()
+    page.overlay.append(file_picker)
+
+    def pick_file(e):
+        file_picker.pick_files(allow_multiple=False)
+
+    def on_file_selected(e):
         nonlocal uploaded_file_bytes
 
         if e.files:
-            uploaded_file_bytes = e.files[0].content
+            # ⚠️ Web uses bytes differently
+            uploaded_file_bytes = e.files[0].bytes
             status_text.value = f"✅ Uploaded: {e.files[0].name}"
         else:
-            status_text.value = "⚠️ Upload failed"
+            status_text.value = "⚠️ No file selected"
 
         page.update()
 
-    upload = ft.FilePicker(on_upload=on_upload)
-    page.overlay.append(upload)
+    file_picker.on_result = on_file_selected
 
-    def pick_file(e):
-        upload.pick_files(allow_multiple=False)
-
-    # --- TRANSCRIBE ---
     def transcribe(e):
         if not uploaded_file_bytes:
             status_text.value = "Upload a file first!"
@@ -56,7 +56,6 @@ def main(page: ft.Page):
         try:
             recognizer = sr.Recognizer()
 
-            # save temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
                 f.write(uploaded_file_bytes)
                 temp_path = f.name
@@ -74,7 +73,6 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- DOWNLOAD ---
     def download(e):
         if transcription_text.value.strip():
             page.set_clipboard(transcription_text.value)
@@ -84,7 +82,6 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- UI LAYOUT ---
     page.add(
         ft.Column(
             [
