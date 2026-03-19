@@ -1,20 +1,20 @@
 import flet as ft
 import speech_recognition as sr
-import tempfile
 import os
+import base64
+import tempfile
 
 def main(page: ft.Page):
     page.title = "VocalScribe"
     page.bgcolor = "#4D0213"
-    page.padding = 20
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    uploaded_file_path = None
+    uploaded_file_bytes = None
 
-    # --- UI ELEMENTS ---
+    # --- UI ---
     transcription_text = ft.TextField(
-        label="Audio Transcription",
+        hint_text="Audio Transcription",
         multiline=True,
         min_lines=5,
         read_only=True,
@@ -25,29 +25,27 @@ def main(page: ft.Page):
 
     status_text = ft.Text("", color="white")
 
-    # --- FILE PICKER ---
-    file_picker = ft.FilePicker()
-    page.overlay.append(file_picker)
-
-    def pick_file(e):
-        file_picker.pick_files(allow_multiple=False)
-
-    def on_file_selected(e):
-        nonlocal uploaded_file_path
+    # --- FILE PICKER (WEB SAFE) ---
+    def on_upload(e: ft.FilePickerUploadEvent):
+        nonlocal uploaded_file_bytes
 
         if e.files:
-            uploaded_file_path = e.files[0].path
+            uploaded_file_bytes = e.files[0].content
             status_text.value = f"✅ Uploaded: {e.files[0].name}"
         else:
-            status_text.value = "⚠️ No file selected"
+            status_text.value = "⚠️ Upload failed"
 
         page.update()
 
-    file_picker.on_result = on_file_selected
+    upload = ft.FilePicker(on_upload=on_upload)
+    page.overlay.append(upload)
+
+    def pick_file(e):
+        upload.pick_files(allow_multiple=False)
 
     # --- TRANSCRIBE ---
     def transcribe(e):
-        if not uploaded_file_path:
+        if not uploaded_file_bytes:
             status_text.value = "Upload a file first!"
             page.update()
             return
@@ -58,7 +56,12 @@ def main(page: ft.Page):
         try:
             recognizer = sr.Recognizer()
 
-            with sr.AudioFile(uploaded_file_path) as source:
+            # save temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                f.write(uploaded_file_bytes)
+                temp_path = f.name
+
+            with sr.AudioFile(temp_path) as source:
                 audio_data = recognizer.record(source)
                 text = recognizer.recognize_google(audio_data)
 
@@ -71,19 +74,14 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- DOWNLOAD TEXT ---
+    # --- DOWNLOAD ---
     def download(e):
-        if not transcription_text.value.strip():
-            status_text.value = "Nothing to download"
-            page.update()
-            return
+        if transcription_text.value.strip():
+            page.set_clipboard(transcription_text.value)
+            status_text.value = "📋 Copied to clipboard!"
+        else:
+            status_text.value = "Nothing to copy"
 
-        file_name = "transcription.txt"
-
-        with open(file_name, "w", encoding="utf-8") as f:
-            f.write(transcription_text.value)
-
-        status_text.value = "📄 File saved as transcription.txt"
         page.update()
 
     # --- UI LAYOUT ---
