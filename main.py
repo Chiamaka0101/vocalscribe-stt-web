@@ -1,18 +1,21 @@
 import flet as ft
 import speech_recognition as sr
-import os
 import tempfile
+import os
+
 
 def main(page: ft.Page):
     page.title = "VocalScribe"
     page.bgcolor = "#4D0213"
+    page.padding = 20
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    uploaded_file_bytes = None
+    uploaded_file = None
 
+    # --- UI ELEMENTS ---
     transcription_text = ft.TextField(
-        hint_text="Audio Transcription",
+        label="Audio Transcription",
         multiline=True,
         min_lines=5,
         read_only=True,
@@ -23,29 +26,24 @@ def main(page: ft.Page):
 
     status_text = ft.Text("", color="white")
 
-    # ✅ CORRECT FILE PICKER
-    file_picker = ft.FilePicker()
-    page.overlay.append(file_picker)
-
-    def pick_file(e):
-        file_picker.pick_files(allow_multiple=False)
-
-    def on_file_selected(e):
-        nonlocal uploaded_file_bytes
+    # --- FILE PICKER (WEB SAFE) ---
+    def on_upload(e: ft.FilePickerResultEvent):
+        nonlocal uploaded_file
 
         if e.files:
-            # ⚠️ Web uses bytes differently
-            uploaded_file_bytes = e.files[0].bytes
-            status_text.value = f"✅ Uploaded: {e.files[0].name}"
+            uploaded_file = e.files[0]
+            status_text.value = f"✅ Uploaded: {uploaded_file.name}"
         else:
             status_text.value = "⚠️ No file selected"
 
         page.update()
 
-    file_picker.on_result = on_file_selected
+    file_picker = ft.FilePicker(on_result=on_upload)
+    page.overlay.append(file_picker)
 
+    # --- TRANSCRIBE ---
     def transcribe(e):
-        if not uploaded_file_bytes:
+        if not uploaded_file:
             status_text.value = "Upload a file first!"
             page.update()
             return
@@ -56,13 +54,14 @@ def main(page: ft.Page):
         try:
             recognizer = sr.Recognizer()
 
+            # Save uploaded bytes to temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-                f.write(uploaded_file_bytes)
+                f.write(uploaded_file.bytes)
                 temp_path = f.name
 
             with sr.AudioFile(temp_path) as source:
-                audio_data = recognizer.record(source)
-                text = recognizer.recognize_google(audio_data)
+                audio = recognizer.record(source)
+                text = recognizer.recognize_google(audio)
 
             transcription_text.value = text
             status_text.value = "✅ Done!"
@@ -73,15 +72,17 @@ def main(page: ft.Page):
 
         page.update()
 
-    def download(e):
+    # --- COPY TEXT ---
+    def copy_text(e):
         if transcription_text.value.strip():
             page.set_clipboard(transcription_text.value)
-            status_text.value = "📋 Copied to clipboard!"
+            status_text.value = "📋 Copied!"
         else:
             status_text.value = "Nothing to copy"
 
         page.update()
 
+    # --- UI LAYOUT ---
     page.add(
         ft.Column(
             [
@@ -92,8 +93,8 @@ def main(page: ft.Page):
                     bgcolor="#d2b49c",
                     padding=15,
                     border_radius=30,
-                    alignment=ft.Alignment(0, 0),
-                    on_click=pick_file,
+                    alignment=ft.alignment.center,
+                    on_click=lambda _: file_picker.pick_files(allow_multiple=False),
                     width=400
                 ),
 
@@ -102,7 +103,7 @@ def main(page: ft.Page):
                 ft.Row(
                     [
                         ft.ElevatedButton("Transcribe", on_click=transcribe),
-                        ft.ElevatedButton("Download as .TXT", on_click=download),
+                        ft.ElevatedButton("Copy Text", on_click=copy_text),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER
                 ),
@@ -116,7 +117,13 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    ft.run(main, port=port)
+
+    ft.run(
+        target=main,
+        view=ft.AppView.WEB_BROWSER,
+        port=port,
+        host="0.0.0.0"   # 🔥 THIS FIXES RENDER
+    )
 
 
 
