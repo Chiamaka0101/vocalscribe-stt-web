@@ -119,12 +119,11 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
 
     ft.run(
-        target=main,
+        main,                     # <-- main function as FIRST argument
         view=ft.AppView.WEB_BROWSER,
         port=port,
-        host="0.0.0.0"   # 🔥 THIS FIXES RENDER
+        host="0.0.0.0"
     )
-
 
 
 
