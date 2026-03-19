@@ -1,7 +1,7 @@
 import flet as ft
 import speech_recognition as sr
 import os
-import base64
+# import base64
 import tempfile
 
 def main(page: ft.Page):
