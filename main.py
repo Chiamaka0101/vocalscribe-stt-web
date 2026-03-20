@@ -38,7 +38,9 @@ def main(page: ft.Page):
 
         page.update()
 
-    file_picker = ft.FilePicker(on_result=on_file_selected)
+    file_picker = ft.FilePicker()
+    file_picker.on_result = on_file_selected
+
 
     # IMPORTANT: add to overlay
     page.overlay.append(file_picker)
@@ -111,7 +113,7 @@ def main(page: ft.Page):
                     bgcolor="#d2b49c",
                     padding=15,
                     border_radius=30,
-                    alignment=ft.alignment.center,
+                    alignment=ft.Alignment(0, 0),
                     on_click=pick_file,
                     width=400
                 ),
@@ -136,7 +138,7 @@ def main(page: ft.Page):
 # ✅ FIXED ENTRY POINT
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    ft.app(target=main, port=port)
+    ft.run(main, port=port)
 
 
 
