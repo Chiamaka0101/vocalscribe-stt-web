@@ -5,16 +5,14 @@ import os
 
 
 def main(page: ft.Page):
-    # --- PAGE SETTINGS ---
     page.title = "VocalScribe"
     page.bgcolor = "#4D0213"
     page.padding = 20
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    recorded_audio = None  # Will store recorded audio bytes
+    uploaded_file_path = None
 
-    # --- UI ELEMENTS ---
     transcription_text = ft.TextField(
         label="Audio Transcription",
         multiline=True,
@@ -27,32 +25,14 @@ def main(page: ft.Page):
 
     status_text = ft.Text("", color="white")
 
-    # --- AUDIO RECORDER CALLBACK ---
-    def on_record_complete(e):
-        """
-        This function runs when recording stops.
-        It stores the recorded audio bytes.
-        """
-        nonlocal recorded_audio
+    # --- FILE UPLOAD HANDLER ---
+    def handle_upload(e: ft.FilePickerUploadEvent):
+        pass  # not used here
 
-        recorded_audio = e.data  # audio bytes from browser
-        status_text.value = "✅ Audio recorded successfully!"
-        page.update()
-
-    # --- AUDIO RECORDER CONTROL ---
-    recorder = ft.AudioRecorder(
-        on_stop=on_record_complete  # trigger when recording stops
-    )
-
-    # --- TRANSCRIBE FUNCTION ---
+    # --- TRANSCRIBE ---
     def transcribe(e):
-        """
-        Converts recorded audio into text using SpeechRecognition.
-        """
-        nonlocal recorded_audio
-
-        if not recorded_audio:
-            status_text.value = "⚠️ Please record audio first!"
+        if not uploaded_file_path:
+            status_text.value = "⚠️ Upload a file first!"
             page.update()
             return
 
@@ -60,23 +40,14 @@ def main(page: ft.Page):
         page.update()
 
         try:
-            recognizer = sr.Recognizer()
+            r = sr.Recognizer()
 
-            # Save recorded audio to a temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-                temp_audio.write(recorded_audio)
-                temp_audio_path = temp_audio.name
-
-            # Process audio file
-            with sr.AudioFile(temp_audio_path) as source:
-                audio_data = recognizer.record(source)
-                text = recognizer.recognize_google(audio_data)
+            with sr.AudioFile(uploaded_file_path) as source:
+                audio = r.record(source)
+                text = r.recognize_google(audio)
 
             transcription_text.value = text
-            status_text.value = "✅ Transcription complete!"
-
-            # Clean up temp file
-            os.remove(temp_audio_path)
+            status_text.value = "✅ Done!"
 
         except Exception as err:
             transcription_text.value = ""
@@ -84,40 +55,25 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- UI LAYOUT ---
+    # --- HTML FILE INPUT (THIS WORKS IN WEB) ---
+    file_input = ft.Html(
+        content="""
+        <input type="file" id="audioFile" accept="audio/*"
+        style="padding:10px;border-radius:20px;background:#d2b49c;" />
+        """,
+    )
+
     page.add(
         ft.Column(
             [
-                # App Title
                 ft.Text("🎙 VocalScribe", size=30, weight="bold", color="white"),
 
-                # Record Audio Button (Styled like your upload button)
-                ft.Container(
-                    content=ft.Text("🎤 Click to Record Audio", color="black"),
-                    bgcolor="#d2b49c",
-                    padding=15,
-                    border_radius=30,
-                    alignment=ft.alignment.center,
-                    on_click=lambda e: recorder.start_recording(),
-                    width=400
-                ),
+                file_input,
 
-                # Stop Recording Button
-                ft.ElevatedButton(
-                    "Stop Recording",
-                    on_click=lambda e: recorder.stop_recording()
-                ),
-
-                # Hidden recorder control (required for functionality)
-                recorder,
-
-                # Transcription output box
                 transcription_text,
 
-                # Transcribe button
                 ft.ElevatedButton("Transcribe", on_click=transcribe),
 
-                # Status messages
                 status_text
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER
@@ -125,7 +81,6 @@ def main(page: ft.Page):
     )
 
 
-# --- ENTRY POINT ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     ft.run(main, port=port)
